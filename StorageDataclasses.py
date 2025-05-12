@@ -31,7 +31,7 @@ class Planet:
 
 @dataclass
 class StarSystem:
-    name:str
+    name: str
     keyFeature: str
     star: Star | Binary
     solarZoneInnerElements: list

@@ -61,7 +61,6 @@ def format_star_system(system):
 
     return "\n".join(lines)
 
-
 class StarSystemApp:
     def __init__(self, root):
 
@@ -69,6 +68,8 @@ class StarSystemApp:
         self.root = root
         self.root.title("Star System Generator")
         self.style = ttk.Style("superhero")
+        self.root.minsize(800,600)
+        self.center_window(1600,900)
 
         #Variables
         self.last_generated_system = None
@@ -94,6 +95,13 @@ class StarSystemApp:
 
         self.setup_random_tab()
         self.setup_manual_tab()
+
+    def center_window(self, width, height):
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x = (screen_width // 2) - (width // 2)
+        y = (screen_height // 2) - (height // 2)
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
 
     def setup_random_tab(self):
         # Button Frame

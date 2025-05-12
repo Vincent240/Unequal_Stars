@@ -41,10 +41,17 @@ PLANET_GAS_GRAVITY = {
     "Titanic": "The effects of such a vast gravity well on the ordering of the System are second only to it's Star"
     }
 PLANET_ROCKY_ORBITALS = {
-    "No Features": "No notable features are added to the Planet’s orbit."
+    "No Features": "No notable features are added to the Planet’s orbit.",
+    "Large Asteroid": "An asteroid of unusual size has been captured by the Planet’s gravity well, and now occupies a stable orbit around it.",
+    "Lesser Moon": "An orbital body somewhere between an extremely large asteroid and a very small moon orbits the Planet. It has its own extremely limited gravity well, allowing low-gravity travel across the surface.",
+    "Moon": "A true moon. Quarter the size of the actual planet it orbits, it's surface contains mineral remnants of the planets formation."
 }
 PLANET_GAS_ORBITALS = {
-    "No Features": "No notable features are added to the Gas Giant’s orbit."
+    "No Features": "No notable features are added to the Gas Giant’s orbit.",
+    "Planetary Rings (Debris)": "A narrow band of asteroids or chunks of ice extends out around the Gas Giant.",
+    "Planetary Rings (Dust)": "A wide ring of fine particles encircles the gas giant.",
+    "Lesser Moon": "An orbital body somewhere between an extremely large asteroid and a very small moon orbits the Gas Giant.",
+    "Moon": "A true moon. Less than a quarter the size of the actual planet it orbits, it's surface contains mineral remnants of the planets formation."
 }
 PLANET_ATMOSPHERIC_PRESENCE = {
     "None": "The Planet has no atmosphere, or it has one so thin as to be effectively nonexistent. Activity on the Planet is treated as being in vacuum"
