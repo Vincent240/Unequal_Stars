@@ -61,6 +61,7 @@ def format_star_system(system):
 
     return "\n".join(lines)
 
+
 class StarSystemApp:
     def __init__(self, root):
 
@@ -87,14 +88,14 @@ class StarSystemApp:
         #Notebook for different tabs
         tab_control = ttk.Notebook(root)
         self.random_tab = ttk.Frame(tab_control)
-        self.manual_tab = ttk.Frame(tab_control)
+        self.browser_frame = ttk.Frame(tab_control)
 
-        tab_control.add(self.random_tab, text='Random Generator')
-        tab_control.add(self.manual_tab, text='Manual Creator')
+        tab_control.add(self.random_tab, text='Text')
+        tab_control.add(self.browser_frame, text='Treeview')
         tab_control.pack(expand=1, fill='both')
 
         self.setup_random_tab()
-        self.setup_manual_tab()
+        self.setup_browser_frame()
 
     def center_window(self, width, height):
         screen_width = self.root.winfo_screenwidth()
@@ -104,10 +105,6 @@ class StarSystemApp:
         self.root.geometry(f"{width}x{height}+{x}+{y}")
 
     def setup_random_tab(self):
-        # Button Frame
-        self.button_frame = ttk.Frame(self.random_tab)
-        self.button_frame.pack(pady=10, fill="x")
-
         self.random_gen_frame = ttk.Frame(self.random_tab, padding=20)
         self.random_gen_frame.pack(fill="both", expand=True)
 
@@ -118,19 +115,21 @@ class StarSystemApp:
         self.output_text = tk.Text(self.random_gen_frame, wrap="word", height=40, width=100)
         self.output_text.pack(side="left",fill="y", expand=False)
 
-    def setup_manual_tab(self):
+    def setup_browser_frame(self):
+        # Main horizontal layout frame
+        self.browser_frame = ttk.Frame(self.browser_frame)
+        self.browser_frame.pack(fill=tk.BOTH, expand=True)
 
-        self.description_frame = ttk.Frame(self.manual_tab)
-        self.description_frame.pack(fill="both", expand=True)
+        # Treeview on the left
+        self.tree = ttk.Treeview(self.browser_frame)
+        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
 
-        string_test = tk.StringVar()
+        # Description panel on the right
+        self.detail_text = tk.Text(self.browser_frame, wrap="word", width=60)
+        self.detail_text.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5)
 
-        self.combobox = ttk.Combobox(self.description_frame, textvariable=string_test,values=list(TL.SYSTEM_ELEMENTS.keys()))
-        self.combobox.current(0)
-        self.combobox.pack()
-
-        self.info_box = ttk.Label(self.description_frame, text=TL.SYSTEM_ELEMENTS[string_test.get()])
-        self.info_box.pack()
+        # Bind tree selection
+        self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
 
     def generate_star_system(self):
         self.output_text['state'] = "normal"
@@ -140,6 +139,96 @@ class StarSystemApp:
         formatted = format_star_system(system)
         self.output_text.insert(tk.END, formatted)
         self.output_text['state'] = "disabled"
+        self.display_star_system_tree(system)
+
+    def display_star_system_tree(self, system):
+        self.tree.delete(*self.tree.get_children())
+
+        root_id = self.tree.insert("", "end", text=f"Star System: {system.name}", open=True)
+        self.tree.insert(root_id, "end", text=f"Key Feature: {system.keyFeature}")
+
+        # Star
+        if hasattr(system.star, "starA"):  # Binary
+            star_node = self.tree.insert(root_id, "end", text="Star: Binary System", open=True)
+            for i, star in enumerate([system.star.starA, system.star.starB], start=1):
+                sid = self.tree.insert(star_node, "end", text=f"Star {i}: {star.name}", open=True)
+                self.tree.insert(sid, "end", text=f"Star Type: {star.type}")
+        else:
+            star = system.star
+            sid = self.tree.insert(root_id, "end", text=f"Star: {star.name}", open=True)
+            self.tree.insert(sid, "end", text=f"Star Type: {star.type}")
+
+        # Zones
+        def process_zone(title, bodies):
+            zone_id = self.tree.insert(root_id, "end", text=title, open=True)
+            for body in bodies:
+                if isinstance(body, str):
+                    self.tree.insert(zone_id, "end", text=f"- {body}")
+                else:
+                    pid = self.tree.insert(zone_id, "end", text=f"{body.type}: {body.name}", open=True)
+                    self.tree.insert(pid, "end", text=f"Body: {body.body}")
+                    self.tree.insert(pid, "end", text=f"Gravity: {body.gravity}")
+                    self.tree.insert(pid, "end",
+                                     text=f"Atmosphere: {body.atmosphericPresence} ({body.atmosphericComposition})")
+                    self.tree.insert(pid, "end", text=f"Climate: {body.climate}")
+                    self.tree.insert(pid, "end", text=f"Habitability: {body.habitability}")
+                    for terr in body.territories:
+                        self.tree.insert(pid, "end", text=f"Territory: {terr.baseTerrain} / {terr.territoryTrait}")
+
+        process_zone("Inner Zone", system.solarZoneInnerElements)
+        process_zone("Middle Zone", system.solarZoneMiddleElements)
+        process_zone("Outer Zone", system.solarZoneOuterElements)
+
+    def on_tree_select(self, event):
+        import TextLists as tl  # Optional if already imported
+        selected_item = self.tree.focus()
+        item_text = self.tree.item(selected_item, "text")
+
+        # Default fallback
+        description = "No description available."
+
+        # Attempt matching by parsing known patterns
+        if item_text.startswith("Key Feature: "):
+            key = item_text.replace("Key Feature: ", "").strip()
+            description = tl.SYSTEM_FEATURES.get(key, description)
+
+        elif "Star Type: " in item_text:
+            key = item_text.replace("Star Type: ", "").strip()
+            description = tl.STAR_TYPES.get(key, description)
+
+        elif "Body: " in item_text:
+            key = item_text.replace("Body: ", "").strip()
+            description = tl.PLANET_ROCKY_BODY_TYPES.get(key,
+                                                         tl.PLANET_GAS_BODY_TYPES.get(key, description))
+
+        elif "Gravity: " in item_text:
+            key = item_text.replace("Gravity: ", "").strip()
+            description = tl.PLANET_ROCKY_GRAVITY.get(key,
+                                                      tl.PLANET_GAS_GRAVITY.get(key, description))
+
+        elif "Atmosphere: " in item_text:
+            start = item_text.find("(")
+            end = item_text.find(")")
+            if start != -1 and end != -1:
+                comp_key = item_text[start + 1:end].strip()
+                description = tl.PLANET_ATMOSPHERIC_COMPOSITION.get(comp_key,
+                                                                    tl.PLANET_GAS_CLASS.get(comp_key, description))
+
+        elif "Climate: " in item_text:
+            key = item_text.replace("Climate: ", "").strip()
+            description = tl.PLANET_CLIMATES.get(key, description)
+
+        elif "Habitability: " in item_text:
+            key = item_text.replace("Habitability: ", "").strip()
+            description = tl.PLANET_HABITABILITY.get(key, description)
+
+        elif "- " in item_text:  # catch other entries like planets, features
+            key = item_text.split("- ", 1)[1].strip()
+            description = tl.SYSTEM_ELEMENTS.get(key, description)
+
+        # Display the description
+        self.detail_text.delete(1.0, tk.END)
+        self.detail_text.insert(tk.END, description)
 
     def save_to_json(self):
         if self.last_generated_system is None:
