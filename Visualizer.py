@@ -49,6 +49,8 @@ def format_star_system(system):
                 lines.append(f"\t\tAtmosphere: {body.atmosphericPresence} ({body.atmosphericComposition})")
                 lines.append(f"\t\tClimate: {body.climate}")
                 lines.append(f"\t\tHabitability: {body.habitability}")
+                for orbt in body.orbitalFeatures:
+                    lines.append(f"\t\tOrbital: {orbt}")
                 lines.append("\t\tTerritories:")
                 for terr in body.territories:
                     lines.append(f"\t\tTerrain: {terr.baseTerrain},\nTrait: {terr.territoryTrait}")
@@ -131,6 +133,23 @@ class StarSystemApp:
         # Bind tree selection
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
 
+        # Bind context menu
+        contextmenu = tk.Menu(self.browser_frame, tearoff=False)
+        contextmenu.add_command(label= "Edit", command = self.edit_tree)
+        contextmenu.add_separator()
+        contextmenu.add_command(label= "Generate New System", command = self.generate_star_system)
+
+        def do_popup(event):
+            selected_item = self.tree.identify_row(event.y)
+            self.tree.selection_set(selected_item)
+            self.tree.focus(selected_item)
+            try:
+                contextmenu.tk_popup(event.x_root, event.y_root)
+            finally:
+                contextmenu.grab_release()
+
+        self.tree.bind("<Button-3>", do_popup)
+
     def generate_star_system(self):
         self.output_text['state'] = "normal"
         self.output_text.delete(1.0, tk.END)
@@ -163,24 +182,27 @@ class StarSystemApp:
             zone_id = self.tree.insert(root_id, "end", text=title, open=True)
             for body in bodies:
                 if isinstance(body, str):
-                    self.tree.insert(zone_id, "end", text=f"- {body}")
+                    self.tree.insert(zone_id, "end", text=f" {body}")
                 else:
-                    pid = self.tree.insert(zone_id, "end", text=f"{body.type}: {body.name}", open=True)
-                    self.tree.insert(pid, "end", text=f"Body: {body.body}")
-                    self.tree.insert(pid, "end", text=f"Gravity: {body.gravity}")
-                    self.tree.insert(pid, "end",
-                                     text=f"Atmosphere: {body.atmosphericPresence} ({body.atmosphericComposition})")
-                    self.tree.insert(pid, "end", text=f"Climate: {body.climate}")
-                    self.tree.insert(pid, "end", text=f"Habitability: {body.habitability}")
+                    planet_id = self.tree.insert(zone_id, "end", text=f"{body.type}: {body.name}", open=True)
+                    self.tree.insert(planet_id, "end", text=f"Body: {body.body}")
+                    self.tree.insert(planet_id, "end", text=f"Gravity: {body.gravity}")
+                    self.tree.insert(planet_id, "end", text=f"Atmosphere: {body.atmosphericPresence}")
+                    self.tree.insert(planet_id, "end", text=f"Atmosphere Compositions: {body.atmosphericComposition}")
+                    self.tree.insert(planet_id, "end", text=f"Climate: {body.climate}")
+                    self.tree.insert(planet_id, "end", text=f"Habitability: {body.habitability}")
+                    orbital_id = self.tree.insert(planet_id, "end", text="Orbitals", open=True)
+                    for orbital in body.orbitalFeatures:
+                        if orbital != "No Features":
+                            self.tree.insert(orbital_id, "end", text=f"O: {orbital}")
                     for terr in body.territories:
-                        self.tree.insert(pid, "end", text=f"Territory: {terr.baseTerrain} / {terr.territoryTrait}")
+                        self.tree.insert(planet_id, "end", text=f"Territory: {terr.baseTerrain} / {terr.territoryTrait}")
 
         process_zone("Inner Zone", system.solarZoneInnerElements)
         process_zone("Middle Zone", system.solarZoneMiddleElements)
         process_zone("Outer Zone", system.solarZoneOuterElements)
 
     def on_tree_select(self, event):
-        import TextLists as tl  # Optional if already imported
         selected_item = self.tree.focus()
         item_text = self.tree.item(selected_item, "text")
 
@@ -190,45 +212,48 @@ class StarSystemApp:
         # Attempt matching by parsing known patterns
         if item_text.startswith("Key Feature: "):
             key = item_text.replace("Key Feature: ", "").strip()
-            description = tl.SYSTEM_FEATURES.get(key, description)
+            description = TL.SYSTEM_FEATURES.get(key, description)
 
         elif "Star Type: " in item_text:
             key = item_text.replace("Star Type: ", "").strip()
-            description = tl.STAR_TYPES.get(key, description)
+            description = TL.STAR_TYPES.get(key, description)
 
         elif "Body: " in item_text:
             key = item_text.replace("Body: ", "").strip()
-            description = tl.PLANET_ROCKY_BODY_TYPES.get(key,
-                                                         tl.PLANET_GAS_BODY_TYPES.get(key, description))
+            description = TL.PLANET_ROCKY_BODY_TYPES.get(key,
+                                                         TL.PLANET_GAS_BODY_TYPES.get(key, description))
 
         elif "Gravity: " in item_text:
             key = item_text.replace("Gravity: ", "").strip()
-            description = tl.PLANET_ROCKY_GRAVITY.get(key,
-                                                      tl.PLANET_GAS_GRAVITY.get(key, description))
+            description = TL.PLANET_ROCKY_GRAVITY.get(key,
+                                                      TL.PLANET_GAS_GRAVITY.get(key, description))
 
         elif "Atmosphere: " in item_text:
             start = item_text.find("(")
             end = item_text.find(")")
             if start != -1 and end != -1:
                 comp_key = item_text[start + 1:end].strip()
-                description = tl.PLANET_ATMOSPHERIC_COMPOSITION.get(comp_key,
-                                                                    tl.PLANET_GAS_CLASS.get(comp_key, description))
+                description = TL.PLANET_ATMOSPHERIC_COMPOSITION.get(comp_key,
+                                                                    TL.PLANET_GAS_CLASS.get(comp_key, description))
 
         elif "Climate: " in item_text:
             key = item_text.replace("Climate: ", "").strip()
-            description = tl.PLANET_CLIMATES.get(key, description)
+            description = TL.PLANET_CLIMATES.get(key, description)
 
         elif "Habitability: " in item_text:
             key = item_text.replace("Habitability: ", "").strip()
-            description = tl.PLANET_HABITABILITY.get(key, description)
+            description = TL.PLANET_HABITABILITY.get(key, description)
 
-        elif "- " in item_text:  # catch other entries like planets, features
-            key = item_text.split("- ", 1)[1].strip()
-            description = tl.SYSTEM_ELEMENTS.get(key, description)
+        elif " " in item_text:  # catch other entries like planets, features
+            key = item_text.split(" ", 1)[1].strip()
+            description = TL.SYSTEM_ELEMENTS.get(key, description)
 
         # Display the description
         self.detail_text.delete(1.0, tk.END)
         self.detail_text.insert(tk.END, description)
+
+    def edit_tree(self, event):
+        selected_item = self.tree.focus()
 
     def save_to_json(self):
         if self.last_generated_system is None:
