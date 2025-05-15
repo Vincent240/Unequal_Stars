@@ -39,7 +39,11 @@ def generate_planet(planet_type=random.choice(TL.PLANET_TYPES)) -> Planet:
     if planet_type == "Gas Giant":
         body = random.choice(list(TL.PLANET_GAS_BODY_TYPES.keys()))
         gravity = random.choice(list(TL.PLANET_GAS_GRAVITY.keys()))
-        orbital_features = random.choice(list(TL.PLANET_GAS_ORBITALS.keys()))
+
+        #Orbital amount calculation
+        orbital_roll = max(1,random.randint(1, 10)+TL.PLANET_GAS_GRAVITY_ROLL_MOD[gravity])
+        orbital_features = random.choices(list(TL.PLANET_GAS_ORBITALS.keys()),weights=TL.PLANET_GAS_ORBITALS_WEIGHTS,k=orbital_roll)
+
         atmospheric_presence = "Gas Giant"
         atmospheric_composition = random.choice(list(TL.PLANET_GAS_CLASS.keys()))
         climate = "None"
@@ -48,11 +52,19 @@ def generate_planet(planet_type=random.choice(TL.PLANET_TYPES)) -> Planet:
     else:
         body = random.choice(list(TL.PLANET_ROCKY_BODY_TYPES.keys()))
         gravity = random.choice(list(TL.PLANET_ROCKY_GRAVITY.keys()))
-        orbital_features = random.choice(list(TL.PLANET_ROCKY_ORBITALS.keys()))
+        orbital_roll = max(1,random.randint(1, 5)+TL.PLANET_ROCKY_GRAVITY_ROLL_MOD[gravity])
+        orbital_features = random.choices(list(TL.PLANET_ROCKY_ORBITALS.keys()),weights=TL.PLANET_ROCKY_ORBITALS_WEIGHTS,k=orbital_roll)
+
         atmospheric_presence = random.choice(list(TL.PLANET_ATMOSPHERIC_PRESENCE.keys()))
-        atmospheric_composition = random.choice(list(TL.PLANET_ATMOSPHERIC_COMPOSITION.keys()))
-        climate = random.choice(list(TL.PLANET_CLIMATES.keys()))
-        habitability = random.choice(list(TL.PLANET_HABITABILITY.keys()))
+        #Logic for cases when rocky world has no atmosphere
+        if atmospheric_presence == "None":
+            atmospheric_composition = "None"
+            habitability = "Inhospitable"
+            climate = "Unshielded World Climate"
+        else:
+            atmospheric_composition = random.choice(list(TL.PLANET_ATMOSPHERIC_COMPOSITION.keys()))
+            habitability = random.choice(list(TL.PLANET_HABITABILITY.keys()))
+            climate = random.choice(list(TL.PLANET_CLIMATES.keys()))
         territories = []
     return Planet(name, planet_type, body, gravity, orbital_features, atmospheric_presence, atmospheric_composition,
                   climate, habitability, territories)

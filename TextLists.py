@@ -1,5 +1,12 @@
 import random
 
+"""
+All texts, roll-tables and modifiers are to be stored in this file.
+Texts are turned into dictionaries - keys can be re-used in multiple dict.
+Roll-Tables are converted into weights for random.choices functions.
+Modifiers are also converted into dictionaries.
+"""
+
 STAR_TYPES = {
     "Mighty": "The fierce light of this star dominates its system utterly. Its coloration is likely to be blue or blue-white. The Inner Cauldron is dominant, and the Primary Biosphere is weak.",
     "Vigorous": "A steady illumination burns forth from the heart of this star. Its coloration is likely to be a pure white.",
@@ -34,18 +41,30 @@ PLANET_ROCKY_GRAVITY = {
     "Normal Gravity": "Terran-standard gravity. No modifiers.",
     "High Gravity": "Strong gravitational pull."
 }
+PLANET_ROCKY_GRAVITY_ROLL_MOD = {
+    "Low Gravity": -3,
+    "Normal Gravity": -2,
+    "High Gravity": -1
+}
 PLANET_GAS_GRAVITY = {
     "Weak": "Though puny by the standards of gas giants, this gravity well is stronger than that of almost any solid Planet",
     "Strong": "This gas giant has the impressive gravity well common to such worlds.",
     "Powerful": "The influence of this gravity well extends well beyond the immediate presence of its source, drawing in whatever passes by",
     "Titanic": "The effects of such a vast gravity well on the ordering of the System are second only to it's Star"
     }
+PLANET_GAS_GRAVITY_ROLL_MOD = {
+    "Weak": -5,
+    "Strong": -3,
+    "Powerful": 2,
+    "Titanic": 3
+}
 PLANET_ROCKY_ORBITALS = {
     "No Features": "No notable features are added to the Planet’s orbit.",
     "Large Asteroid": "An asteroid of unusual size has been captured by the Planet’s gravity well, and now occupies a stable orbit around it.",
     "Lesser Moon": "An orbital body somewhere between an extremely large asteroid and a very small moon orbits the Planet. It has its own extremely limited gravity well, allowing low-gravity travel across the surface.",
     "Moon": "A true moon. Quarter the size of the actual planet it orbits, it's surface contains mineral remnants of the planets formation."
 }
+PLANET_ROCKY_ORBITALS_WEIGHTS = [40, 15, 30, 10]
 PLANET_GAS_ORBITALS = {
     "No Features": "No notable features are added to the Gas Giant’s orbit.",
     "Planetary Rings (Debris)": "A narrow band of asteroids or chunks of ice extends out around the Gas Giant.",
@@ -53,11 +72,19 @@ PLANET_GAS_ORBITALS = {
     "Lesser Moon": "An orbital body somewhere between an extremely large asteroid and a very small moon orbits the Gas Giant.",
     "Moon": "A true moon. Less than a quarter the size of the actual planet it orbits, it's surface contains mineral remnants of the planets formation."
 }
+PLANET_GAS_ORBITALS_WEIGHTS = [20, 15, 15, 35, 15]
 PLANET_ATMOSPHERIC_PRESENCE = {
-    "None": "The Planet has no atmosphere, or it has one so thin as to be effectively nonexistent. Activity on the Planet is treated as being in vacuum"
+    "None": "The Planet has no atmosphere, or it has one so thin as to be effectively nonexistent. Activity on the Planet is treated as being in vacuum.",
+    "Thin": "The Planet’s atmosphere is weak, but avoids the problems of an actual vacuum.",
+    "Moderate": "Atmospheres in this range produce no ill effects due to lack or overabundance of air.",
+    "Heavy": "A thick blanket of air presses down on the Planet, coming just short of smothering those beneath it."
 }
 PLANET_ATMOSPHERIC_COMPOSITION = {
-    "Deadly": "An atmosphere of this sort is little more than a vast acid bath."
+    "Deadly": "An atmosphere of this sort is little more than a vast acid bath.",
+    "Corrosive": "This atmosphere is both poisonous to breathe and deadly on any sort of contact. Anyone not protected by a fullThis atmosphere is both poisonous to breathe and deadly on any sort of contact.",
+    "Toxic": "Poisonous gases and vapours fill the Planet’s atmosphere",
+    "Tainted": "Though capable of sustaining human life, this atmosphere is not entirely safe, stained by trace elements of toxins.",
+    "Pure": "The atmosphere is entirely safe for humans and most other common life forms to breathe."
 }
 PLANET_GAS_CLASS = {
     "Class I": "Cold gas giants with thick ammonia clouds dominating their upper atmospheres.",
@@ -67,9 +94,18 @@ PLANET_GAS_CLASS = {
     "Class V": "Extremely hot \"roasters\" with high-altitude silicate and iron clouds."
 }
 PLANET_CLIMATES = {
-    "Burning World": "A fierce heat blankets the Planet in its entirety. The heat usually recedes at night, but it is likely still too warm for comfort. The entire Planet is affected by extreme heat. Tests made to resist the heat are Very Hard (–30)."}
+    "Burning World": "A fierce heat blankets the Planet in its entirety. The heat usually recedes at night, but it is likely still too warm for comfort. The entire Planet is affected by extreme heat. Tests made to resist the heat are Very Hard (–30).",
+    "Hot World": "Most of this Planet is dangerously hot, but various regions can be found with more moderate microclimates. Outside of these sheltered regions, the entire Planet is affected by extreme heat.",
+    "Temperate World": "Temperate Planets are exclusively found in or near a system’s Primary Biosphere. They might contain regions of either extreme heat or extreme cold, and in many cases, have some of both.",
+    "Cold World": "Most of this Planet is dangerously cold, but various regions can found with more moderate microclimates. Outside of these sheltered regions, the entire Planet is affected by extreme cold.",
+    "Ice World": "The Planet is frozen, from pole to pole. The entire Planet is affected by extreme cold."
+}
 PLANET_HABITABILITY = {
-    "Inhospitable": "There is no life or water to be found on this Planet."
+    "Inhospitable": "There is no life or water to be found on this Planet.",
+    "Trapped Water": "There is water on this Planet, but it is in a form that requires processing before it can be used or consumed. It might be frozen or have boiled away to vapour on Planets with extreme climates. Alternatively, the water could be locked away in deep channels underground, or contaminated with other materials.",
+    "Liquid Water": "Liquid water is accessible on the Planet’s surface, but no native life has arisen to make use of it.",
+    "Limited Ecosystem": "The Planet has native life of a limited variety. It could be that this Planet’s species have not advanced beyond basic proto-biology, or their spread across the Planet was restricted by local conditions. This might also indicate a Planet on the decline, or recovering from a devastating natural disaster.",
+    "Verdant": "The Planet has a thriving ecosystem. A variety of species can be found almost anywhere on the Planet."
 }
 
 SYSTEM_FEATURES = {

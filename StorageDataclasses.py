@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 from typing import List, Union
 
+"""
+Every structure that is to be generated is located in here
+"""
+
 @dataclass
 class Star:
     name: str
