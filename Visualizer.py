@@ -1,13 +1,14 @@
+import json
 import os
 import sys
 import tkinter as tk
-import ttkbootstrap as ttk
 from tkinter import filedialog, messagebox
-import json
 
+import ttkbootstrap as ttk
+
+import TextLists as TL
 from Generator import create_star_system
 from StorageDataclasses import StarSystem, Star, Binary, Planet, Territory
-import TextLists as TL
 
 
 def format_star_system(system):
@@ -67,17 +68,17 @@ def format_star_system(system):
 class StarSystemApp:
     def __init__(self, root):
 
-        #root
+        # root
         self.root = root
         self.root.title("Star System Generator")
         self.style = ttk.Style("superhero")
-        self.root.minsize(800,600)
-        self.center_window(1600,900)
+        self.root.minsize(800, 600)
+        self.center_window(1600, 900)
 
-        #Variables
-        self.last_generated_system = None
+        # Variables
+        self.current_generated_system = None
 
-        #Save and Load Frame
+        # Save and Load Frame
         self.button_frame = ttk.Frame(self.root)
         self.button_frame.pack(pady=10, fill="x")
 
@@ -87,7 +88,7 @@ class StarSystemApp:
         self.load_btn = ttk.Button(self.button_frame, text="Load JSON", command=self.load_from_json)
         self.load_btn.pack(side="right", padx=5)
 
-        #Notebook for different tabs
+        # Notebook for different tabs
         tab_control = ttk.Notebook(root)
         self.random_tab = ttk.Frame(tab_control)
         self.browser_frame = ttk.Frame(tab_control)
@@ -110,12 +111,13 @@ class StarSystemApp:
         self.random_gen_frame = ttk.Frame(self.random_tab, padding=20)
         self.random_gen_frame.pack(fill="both", expand=True)
 
-        self.generate_btn = ttk.Button(self.button_frame, text="Generate Star System", command=self.generate_star_system)
+        self.generate_btn = ttk.Button(self.button_frame, text="Generate Star System",
+                                       command=self.generate_star_system)
         self.generate_btn.pack(side="left", padx=5)
 
         # Output Box
         self.output_text = tk.Text(self.random_gen_frame, wrap="word", height=40, width=100)
-        self.output_text.pack(side="left",fill="y", expand=False)
+        self.output_text.pack(side="left", fill="y", expand=False)
 
     def setup_browser_frame(self):
         # Main horizontal layout frame
@@ -131,30 +133,40 @@ class StarSystemApp:
         self.detail_text.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5)
 
         # Bind tree selection
-        self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
+        self.tree.bind("<<TreeviewSelect>>", self.on_tree_select_get_description)
 
-        # Bind context menu
-        contextmenu = tk.Menu(self.browser_frame, tearoff=False)
-        contextmenu.add_command(label= "Edit", command = self.edit_tree)
-        contextmenu.add_separator()
-        contextmenu.add_command(label= "Generate New System", command = self.generate_star_system)
+        def show_context_menu(event):
+            #Check that you are selecting something and get the tree item
+            item_id = self.tree.identify_row(event.y)
+            if item_id:
+                self.tree.selection_set(item_id)
+                self.tree.focus(item_id)
 
-        def do_popup(event):
-            selected_item = self.tree.identify_row(event.y)
-            self.tree.selection_set(selected_item)
-            self.tree.focus(selected_item)
+            #Get current node tag to properly label the buttons
+            current_tag = self.tree.item(item_id, "tags")
+            label = "Edit"
+            if "name" in current_tag:
+                label = "Rename"
+
+            #Build the context menu
+            contextmenu = tk.Menu(self.browser_frame, tearoff=False)
+            contextmenu.add_command(label=label, command=self.edit_node)
+            contextmenu.add_separator()
+            contextmenu.add_command(label="Generate New System", command=self.generate_star_system)
+
+            #Try to open the menu
             try:
                 contextmenu.tk_popup(event.x_root, event.y_root)
             finally:
                 contextmenu.grab_release()
 
-        self.tree.bind("<Button-3>", do_popup)
+        self.tree.bind("<Button-3>", show_context_menu)
 
     def generate_star_system(self):
         self.output_text['state'] = "normal"
         self.output_text.delete(1.0, tk.END)
         system = create_star_system()
-        self.last_generated_system = system
+        self.current_generated_system = system
         formatted = format_star_system(system)
         self.output_text.insert(tk.END, formatted)
         self.output_text['state'] = "disabled"
@@ -163,18 +175,19 @@ class StarSystemApp:
     def display_star_system_tree(self, system):
         self.tree.delete(*self.tree.get_children())
 
-        root_id = self.tree.insert("", "end", text=f"Star System: {system.name}", open=True)
+        root_id = self.tree.insert("", "end", text=f"Star System: {system.name}", open=True, tags="name")
         self.tree.insert(root_id, "end", text=f"Key Feature: {system.keyFeature}")
 
         # Star
         if hasattr(system.star, "starA"):  # Binary
             star_node = self.tree.insert(root_id, "end", text="Star: Binary System", open=True)
             for i, star in enumerate([system.star.starA, system.star.starB], start=1):
-                sid = self.tree.insert(star_node, "end", text=f"Star {i}: {star.name}", open=True)
+                sid = self.tree.insert(star_node, "end", text=f"Star {i}: {star.name}", open=True,
+                                       tags=["star", "name"])
                 self.tree.insert(sid, "end", text=f"Star Type: {star.type}")
         else:
             star = system.star
-            sid = self.tree.insert(root_id, "end", text=f"Star: {star.name}", open=True)
+            sid = self.tree.insert(root_id, "end", text=f"Star: {star.name}", open=True, tags="name")
             self.tree.insert(sid, "end", text=f"Star Type: {star.type}")
 
         # Zones
@@ -182,29 +195,33 @@ class StarSystemApp:
             zone_id = self.tree.insert(root_id, "end", text=title, open=True)
             for body in bodies:
                 if isinstance(body, str):
-                    self.tree.insert(zone_id, "end", text=f" {body}")
+                    self.tree.insert(zone_id, "end", text=f" {body}", open=True)
                 else:
-                    planet_id = self.tree.insert(zone_id, "end", text=f"{body.type}: {body.name}", open=True)
+                    planet_id = self.tree.insert(zone_id, "end", text=f"{body.type}: {body.name}", open=True,
+                                                 tags=["planet", "name"])
                     self.tree.insert(planet_id, "end", text=f"Body: {body.body}")
                     self.tree.insert(planet_id, "end", text=f"Gravity: {body.gravity}")
                     self.tree.insert(planet_id, "end", text=f"Atmosphere: {body.atmosphericPresence}")
                     self.tree.insert(planet_id, "end", text=f"Atmosphere Compositions: {body.atmosphericComposition}")
                     self.tree.insert(planet_id, "end", text=f"Climate: {body.climate}")
                     self.tree.insert(planet_id, "end", text=f"Habitability: {body.habitability}")
-                    orbital_id = self.tree.insert(planet_id, "end", text="Orbitals", open=True)
+                    orbital_id = self.tree.insert(planet_id, "end", text="Orbitals", open=True,
+                                                  tags=["orbital", "name"])
                     for orbital in body.orbitalFeatures:
                         if orbital != "No Features":
                             self.tree.insert(orbital_id, "end", text=f"O: {orbital}")
                     for terr in body.territories:
-                        self.tree.insert(planet_id, "end", text=f"Territory: {terr.baseTerrain} / {terr.territoryTrait}")
+                        self.tree.insert(planet_id, "end",
+                                         text=f"Territory: {terr.baseTerrain} / {terr.territoryTrait}")
 
         process_zone("Inner Zone", system.solarZoneInnerElements)
         process_zone("Middle Zone", system.solarZoneMiddleElements)
         process_zone("Outer Zone", system.solarZoneOuterElements)
 
-    def on_tree_select(self, event):
+    def on_tree_select_get_description(self, event):
         selected_item = self.tree.focus()
         item_text = self.tree.item(selected_item, "text")
+        item_tags = self.tree.item(selected_item, "tags")
 
         # Default fallback
         description = "No description available."
@@ -252,24 +269,68 @@ class StarSystemApp:
         self.detail_text.delete(1.0, tk.END)
         self.detail_text.insert(tk.END, description)
 
-    def edit_tree(self, event):
-        selected_item = self.tree.focus()
+    def edit_node(self):
+        # Check if Item actually present
+        item_id = self.tree.focus()
+        if not item_id:
+            return
+
+        # Variables for system modification
+        current_text = self.tree.item(item_id, "text")
+        current_tag = self.tree.item(item_id, "tags")
+        current_index = self.tree.index(item_id)
+
+        # Rename objects that have tag "name"
+        if "name" in current_tag:
+            obj_type, current_name = current_text.split(": ", 1)
+            new_name = tk.simpledialog.askstring("Rename", f"Enter new name for {obj_type}:", initialvalue=current_name)
+            if not new_name:
+                return
+
+            # Update Treeview display
+            self.tree.item(item_id, text=f"{obj_type}: {new_name}")
+
+            # Update the dataclass stored in self.current_generated_system
+            system = self.current_generated_system
+
+            # Rename Planet
+            for zone in [system.solarZoneInnerElements, system.solarZoneMiddleElements, system.solarZoneOuterElements]:
+                for body in zone:
+                    if hasattr(body, "name") and body.name == current_name:
+                        body.name = new_name
+                        return
+
+            # Rename Single Star
+            if hasattr(system.star, "name") and system.star.name == current_name:
+                system.star.name = new_name
+                return
+
+            # Rename Binary Stars
+            if hasattr(system.star, "starA"):
+                if system.star.starA.name == current_name:
+                    system.star.starA.name = new_name
+                    return
+                if system.star.starB.name == current_name:
+                    system.star.starB.name = new_name
+                    return
 
     def save_to_json(self):
-        if self.last_generated_system is None:
+        if self.current_generated_system is None:
             tk.messagebox.showinfo("Info", "No star system generated yet.")
             return
-        path = tk.filedialog.asksaveasfilename(initialdir=os.path.dirname(os.path.abspath(sys.argv[0])),defaultextension=".json", filetypes=[("JSON Files", "*.json")])
+        path = tk.filedialog.asksaveasfilename(initialdir=os.path.dirname(os.path.abspath(sys.argv[0])),
+                                               defaultextension=".json", filetypes=[("JSON Files", "*.json")])
         if path:
             try:
                 with open(path, "w") as f:
-                    json.dump(self.last_generated_system, f, indent=4, default=lambda o: o.__dict__)
+                    json.dump(self.current_generated_system, f, indent=4, default=lambda o: o.__dict__)
                 tk.messagebox.showinfo("Saved", f"Star system saved to:\n{path}")
             except Exception as e:
                 tk.messagebox.showerror("Error", f"Could not save file:\n{e}")
 
     def load_from_json(self):
-        path = tk.filedialog.askopenfilename(initialdir=os.path.dirname(os.path.abspath(sys.argv[0])), filetypes=[("JSON Files", "*.json")])
+        path = tk.filedialog.askopenfilename(initialdir=os.path.dirname(os.path.abspath(sys.argv[0])),
+                                             filetypes=[("JSON Files", "*.json")])
         if path:
             try:
                 with open(path, "r") as f:
@@ -301,7 +362,7 @@ class StarSystemApp:
                     solarZoneOuterElements=make_planets(data["solarZoneOuterElements"]),
                 )
 
-                self.last_generated_system = system
+                self.current_generated_system = system
                 formatted = format_star_system(system)
                 self.output_text.delete(1.0, tk.END)
                 self.output_text.insert(tk.END, formatted)
@@ -309,7 +370,6 @@ class StarSystemApp:
 
             except Exception as e:
                 tk.messagebox.showerror("Error", f"Could not load file:\n{e}")
-
 
 
 if __name__ == "__main__":
