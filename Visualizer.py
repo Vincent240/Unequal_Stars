@@ -77,6 +77,8 @@ class StarSystemApp:
 
         # Variables
         self.current_generated_system = None
+        # Map of the tree to reference objects in the dataclass
+        self.tree_map = {}
 
         # Save and Load Frame
         self.button_frame = ttk.Frame(self.root)
@@ -90,15 +92,15 @@ class StarSystemApp:
 
         # Notebook for different tabs
         tab_control = ttk.Notebook(root)
-        self.random_tab = ttk.Frame(tab_control)
         self.browser_frame = ttk.Frame(tab_control)
+        self.random_tab = ttk.Frame(tab_control)
 
-        tab_control.add(self.random_tab, text='Text')
         tab_control.add(self.browser_frame, text='Treeview')
+        tab_control.add(self.random_tab, text='Text')
         tab_control.pack(expand=1, fill='both')
 
-        self.setup_random_tab()
         self.setup_browser_frame()
+        self.setup_text_tab()
 
     def center_window(self, width, height):
         screen_width = self.root.winfo_screenwidth()
@@ -107,7 +109,7 @@ class StarSystemApp:
         y = (screen_height // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
 
-    def setup_random_tab(self):
+    def setup_text_tab(self):
         self.random_gen_frame = ttk.Frame(self.random_tab, padding=20)
         self.random_gen_frame.pack(fill="both", expand=True)
 
@@ -117,44 +119,54 @@ class StarSystemApp:
 
         # Output Box
         self.output_text = tk.Text(self.random_gen_frame, wrap="word", height=40, width=100)
-        self.output_text.pack(side="left", fill="y", expand=False)
+        self.output_text.pack(side="left", fill="both", expand=True)
 
     def setup_browser_frame(self):
         # Main horizontal layout frame
         self.browser_frame = ttk.Frame(self.browser_frame)
-        self.browser_frame.pack(fill=tk.BOTH, expand=True)
+        self.browser_frame.pack(fill="both", expand=True)
 
         # Treeview on the left
         self.tree = ttk.Treeview(self.browser_frame)
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+        self.tree.column("#0", width=400)
+        self.tree.heading("#0", text="Star System")
+        self.tree.pack(side="left", fill="y", expand=False, padx=10, pady=10)
+
+        # Event to prevent Star System node being closed
+        def on_node_close(event):
+            item_id = self.tree.focus()
+            if "locked" in self.tree.item(item_id, "tags"):
+                self.tree.item(item_id, open=True)
+
+        self.tree.bind("<<TreeviewClose>>", on_node_close)
 
         # Description panel on the right
         self.detail_text = tk.Text(self.browser_frame, wrap="word", width=60)
-        self.detail_text.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5)
+        self.detail_text.pack(side="right", fill="both", expand=True, padx=10, pady=10)
 
         # Bind tree selection
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select_get_description)
 
         def show_context_menu(event):
-            #Check that you are selecting something and get the tree item
+            # Check that you are selecting something and get the tree item
             item_id = self.tree.identify_row(event.y)
             if item_id:
                 self.tree.selection_set(item_id)
                 self.tree.focus(item_id)
 
-            #Get current node tag to properly label the buttons
+            # Get current node tag to properly label the buttons
             current_tag = self.tree.item(item_id, "tags")
             label = "Edit"
             if "name" in current_tag:
                 label = "Rename"
 
-            #Build the context menu
+            # Build the context menu
             contextmenu = tk.Menu(self.browser_frame, tearoff=False)
             contextmenu.add_command(label=label, command=self.edit_node)
             contextmenu.add_separator()
             contextmenu.add_command(label="Generate New System", command=self.generate_star_system)
 
-            #Try to open the menu
+            # Try to open the menu
             try:
                 contextmenu.tk_popup(event.x_root, event.y_root)
             finally:
@@ -162,57 +174,75 @@ class StarSystemApp:
 
         self.tree.bind("<Button-3>", show_context_menu)
 
-    def generate_star_system(self):
+    def update_text_view(self,system):
         self.output_text['state'] = "normal"
         self.output_text.delete(1.0, tk.END)
-        system = create_star_system()
-        self.current_generated_system = system
         formatted = format_star_system(system)
         self.output_text.insert(tk.END, formatted)
         self.output_text['state'] = "disabled"
+
+    def generate_star_system(self):
+        system = create_star_system()
+        self.update_text_view(system)
         self.display_star_system_tree(system)
 
     def display_star_system_tree(self, system):
         self.tree.delete(*self.tree.get_children())
 
-        root_id = self.tree.insert("", "end", text=f"Star System: {system.name}", open=True, tags="name")
-        self.tree.insert(root_id, "end", text=f"Key Feature: {system.keyFeature}")
+        # Insert the Star System and map it
+        system_id = self.tree.insert("", "end", text=f"Star System: {system.name}", open=True,
+                                     tags=["system", "name", "locked"])
+        self.tree.insert(system_id, "end", text=f"Key Feature: {system.keyFeature}", tags=["system", "feature"])
+        self.tree_map[system_id] = system
 
-        # Star
+        # Insert the Star and map it
         if hasattr(system.star, "starA"):  # Binary
-            star_node = self.tree.insert(root_id, "end", text="Star: Binary System", open=True)
+            star_node = self.tree.insert(system_id, "end", text="Star: Binary System", open=True, tags=["system", "binary"])
             for i, star in enumerate([system.star.starA, system.star.starB], start=1):
-                sid = self.tree.insert(star_node, "end", text=f"Star {i}: {star.name}", open=True,
-                                       tags=["star", "name"])
-                self.tree.insert(sid, "end", text=f"Star Type: {star.type}")
+                star_id = self.tree.insert(star_node, "end", text=f"Star {i}: {star.name}", open=True,
+                                           tags=["star", "name", "binary"])
+                self.tree.insert(star_id, "end", text=f"Star Type: {star.type}", tags=["star", "type"])
+                self.tree_map[star_id] = star
         else:
             star = system.star
-            sid = self.tree.insert(root_id, "end", text=f"Star: {star.name}", open=True, tags="name")
-            self.tree.insert(sid, "end", text=f"Star Type: {star.type}")
+            star_id = self.tree.insert(system_id, "end", text=f"Star: {star.name}", open=True, tags=["star", "name"])
+            self.tree.insert(star_id, "end", text=f"Star Type: {star.type}", tags=["star", "type"])
+            self.tree_map[star_id] = star
 
-        # Zones
+        # Process the Zones
         def process_zone(title, bodies):
-            zone_id = self.tree.insert(root_id, "end", text=title, open=True)
+            zone_id = self.tree.insert(system_id, "end", text=title, open=True)
             for body in bodies:
                 if isinstance(body, str):
-                    self.tree.insert(zone_id, "end", text=f" {body}", open=True)
+                    element_id = self.tree.insert(zone_id, "end", text=f"{body}", open=True, tags=["system","system element"])
+                    self.tree_map[element_id] = body
                 else:
+                    # Insert the planets and map them
                     planet_id = self.tree.insert(zone_id, "end", text=f"{body.type}: {body.name}", open=True,
                                                  tags=["planet", "name"])
-                    self.tree.insert(planet_id, "end", text=f"Body: {body.body}")
-                    self.tree.insert(planet_id, "end", text=f"Gravity: {body.gravity}")
-                    self.tree.insert(planet_id, "end", text=f"Atmosphere: {body.atmosphericPresence}")
-                    self.tree.insert(planet_id, "end", text=f"Atmosphere Compositions: {body.atmosphericComposition}")
-                    self.tree.insert(planet_id, "end", text=f"Climate: {body.climate}")
-                    self.tree.insert(planet_id, "end", text=f"Habitability: {body.habitability}")
-                    orbital_id = self.tree.insert(planet_id, "end", text="Orbitals", open=True,
-                                                  tags=["orbital", "name"])
+                    self.tree.insert(planet_id, "end", text=f"Body: {body.body}", tags=["planet", "body"])
+                    self.tree.insert(planet_id, "end", text=f"Gravity: {body.gravity}", tags=["planet", "gravity"])
+                    self.tree.insert(planet_id, "end", text=f"Atmosphere: {body.atmosphericPresence}",
+                                     tags=["planet", "atmosphericPresence"])
+                    self.tree.insert(planet_id, "end", text=f"Atmosphere Compositions: {body.atmosphericComposition}",
+                                     tags=["planet", "atmosphericCompositions"])
+                    self.tree.insert(planet_id, "end", text=f"Climate: {body.climate}", tags=["planet", "climate"])
+                    self.tree.insert(planet_id, "end", text=f"Habitability: {body.habitability}",
+                                     tags=["planet", "habitability"])
+                    self.tree_map[planet_id] = body
+
+                    # Insert the orbitals and map them
+                    orbital_id = self.tree.insert(planet_id, "end", text="Orbitals", open=True)
                     for orbital in body.orbitalFeatures:
                         if orbital != "No Features":
-                            self.tree.insert(orbital_id, "end", text=f"O: {orbital}")
+                            self.tree.insert(orbital_id, "end", text=f"{orbital}", tags=["planet","orbital"])
+                            self.tree_map[orbital] = orbital
+
+                    # Insert the territories
                     for terr in body.territories:
                         self.tree.insert(planet_id, "end",
-                                         text=f"Territory: {terr.baseTerrain} / {terr.territoryTrait}")
+                                         text=f"Territory: {terr.baseTerrain} / {terr.territoryTrait}",
+                                         tags=["planet","territory"])
 
         process_zone("Inner Zone", system.solarZoneInnerElements)
         process_zone("Middle Zone", system.solarZoneMiddleElements)
@@ -223,96 +253,122 @@ class StarSystemApp:
         item_text = self.tree.item(selected_item, "text")
         item_tags = self.tree.item(selected_item, "tags")
 
-        # Default fallback
+        # Default fallback description
         description = "No description available."
 
-        # Attempt matching by parsing known patterns
-        if item_text.startswith("Key Feature: "):
-            key = item_text.replace("Key Feature: ", "").strip()
-            description = TL.SYSTEM_FEATURES.get(key, description)
+        # Get the actual value
+        try:
+            label, key = item_text.split(": ")
+        except:
+            key = item_text
 
-        elif "Star Type: " in item_text:
-            key = item_text.replace("Star Type: ", "").strip()
-            description = TL.STAR_TYPES.get(key, description)
+        # Get the tag that answers for the description value, ignore the first descriptor tag
+        if len(item_tags) >= 2 and item_tags[0] in ("system", "star", "planet"):
+            tag = item_tags[1]
+        else:
+            tag = item_tags
 
-        elif "Body: " in item_text:
-            key = item_text.replace("Body: ", "").strip()
-            description = TL.PLANET_ROCKY_BODY_TYPES.get(key,
-                                                         TL.PLANET_GAS_BODY_TYPES.get(key, description))
-
-        elif "Gravity: " in item_text:
-            key = item_text.replace("Gravity: ", "").strip()
-            description = TL.PLANET_ROCKY_GRAVITY.get(key,
-                                                      TL.PLANET_GAS_GRAVITY.get(key, description))
-
-        elif "Atmosphere: " in item_text:
-            start = item_text.find("(")
-            end = item_text.find(")")
-            if start != -1 and end != -1:
-                comp_key = item_text[start + 1:end].strip()
-                description = TL.PLANET_ATMOSPHERIC_COMPOSITION.get(comp_key,
-                                                                    TL.PLANET_GAS_CLASS.get(comp_key, description))
-
-        elif "Climate: " in item_text:
-            key = item_text.replace("Climate: ", "").strip()
-            description = TL.PLANET_CLIMATES.get(key, description)
-
-        elif "Habitability: " in item_text:
-            key = item_text.replace("Habitability: ", "").strip()
-            description = TL.PLANET_HABITABILITY.get(key, description)
-
-        elif " " in item_text:  # catch other entries like planets, features
-            key = item_text.split(" ", 1)[1].strip()
-            description = TL.SYSTEM_ELEMENTS.get(key, description)
+        # Check tag and check the proper TextList dict
+        match tag:
+            case "feature":
+                description = TL.SYSTEM_FEATURES.get(key, description)
+            case "system element":
+                description = TL.SYSTEM_ELEMENTS.get(key, description)
+            case "type":
+                description = TL.STAR_TYPES.get(key, description)
+            case "body":
+                description = TL.PLANET_ROCKY_BODY_TYPES.get(key, TL.PLANET_GAS_BODY_TYPES.get(key, description))
+            case "gravity":
+                description = TL.PLANET_ROCKY_GRAVITY.get(key, TL.PLANET_GAS_GRAVITY.get(key, description))
+            case "atmosphericPresence":
+                if key == "Gas Giant":
+                    description = "This planet is composed mostly of gas"
+                else:
+                    description = TL.PLANET_ATMOSPHERIC_PRESENCE.get(key, description)
+            case "atmosphericCompositions":
+                description = TL.PLANET_ATMOSPHERIC_COMPOSITION.get(key, TL.PLANET_GAS_CLASS.get(key, description))
+            case "climate":
+                if key == "None":
+                    description = "This planet is composed mostly of gas, it does not have any climate."
+                else:
+                    description = TL.PLANET_CLIMATES.get(key, description)
+            case "habitability":
+                if key == "None":
+                    description = "This planet is composed mostly of gas, therefore it is inhabitable"
+                else:
+                    description = TL.PLANET_HABITABILITY.get(key, description)
+            case "orbital":
+                description = TL.PLANET_ROCKY_ORBITALS.get(key, TL.PLANET_GAS_ORBITALS.get(key, description))
+            case "territory":
+                description = "TBA later"
 
         # Display the description
         self.detail_text.delete(1.0, tk.END)
         self.detail_text.insert(tk.END, description)
 
     def edit_node(self):
-        # Check if Item actually present
-        item_id = self.tree.focus()
-        if not item_id:
-            return
-
         # Variables for system modification
+        item_id = self.tree.focus()
+        parent_id = self.tree.parent(item_id)
         current_text = self.tree.item(item_id, "text")
         current_tag = self.tree.item(item_id, "tags")
-        current_index = self.tree.index(item_id)
+        text_label, current_value = self.tree.item(item_id, "text").split(": ")
+        new_value = current_value
+        obj = None
 
-        # Rename objects that have tag "name"
-        if "name" in current_tag:
-            obj_type, current_name = current_text.split(": ", 1)
-            new_name = tk.simpledialog.askstring("Rename", f"Enter new name for {obj_type}:", initialvalue=current_name)
-            if not new_name:
-                return
+        # Check if the item has a tracked dataclass reference
+        if item_id not in self.tree_map:
+            # Send error message
+            tk.messagebox.showerror("Error", "This item does not have a reference in item tree.")
+        else:
+            # Set current object and proceed with logic
+            obj = self.tree_map[item_id]
 
-            # Update Treeview display
-            self.tree.item(item_id, text=f"{obj_type}: {new_name}")
-
-            # Update the dataclass stored in self.current_generated_system
-            system = self.current_generated_system
-
-            # Rename Planet
-            for zone in [system.solarZoneInnerElements, system.solarZoneMiddleElements, system.solarZoneOuterElements]:
-                for body in zone:
-                    if hasattr(body, "name") and body.name == current_name:
-                        body.name = new_name
-                        return
-
-            # Rename Single Star
-            if hasattr(system.star, "name") and system.star.name == current_name:
-                system.star.name = new_name
-                return
-
-            # Rename Binary Stars
-            if hasattr(system.star, "starA"):
-                if system.star.starA.name == current_name:
-                    system.star.starA.name = new_name
+            # Change  the name
+            if "name" in current_tag:
+                field = "name"
+                new_value = tk.simpledialog.askstring("Edit", f"Enter new name for {text_label}:", initialvalue=current_value)
+                if not new_value or new_value == current_value:
                     return
-                if system.star.starB.name == current_name:
-                    system.star.starB.name = new_name
-                    return
+
+
+            # Check that we actually need to update Treeview and dataclass
+            if new_value != current_value:
+                try:
+                    # Update Treeview display
+                    self.tree.item(item_id, text=f"{text_label}: {new_value}")
+                    # Set new value in dataclass
+                    setattr(obj, field, new_value)
+                    # Update Text View
+                except:
+                    tk.messagebox.showerror("Error", "Couldn't update {label}.")
+
+        # Custom dialog window
+        def open_edit_dialogue(label_text, values_list):
+            # Dialog window itself
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Edit Node")
+            dialog.grab_set()
+
+            # Make appear at at the widnow
+
+            main_x = self.root.winfo_rootx()
+            main_y = self.root.winfo_rooty()
+            dialog.geometry(f"+{main_x + 200}+{main_y + 80}")
+
+            tk.Label(dialog, text=label_text).pack(padx=10, pady=(10, 0))
+
+            # Combobox for selection
+            combo = ttk.Combobox(dialog, values=values_list, state="readonly")
+            combo.pack(padx=10, pady=5)
+            combo.current(0)
+
+            def submit():
+                selected_value = combo.get()
+                dialog.destroy()
+
+            ttk.Button(dialog, text="Apply", command=submit).pack(pady=10)
+
 
     def save_to_json(self):
         if self.current_generated_system is None:
